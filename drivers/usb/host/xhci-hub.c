@@ -20,6 +20,7 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#define DEBUG
 
 #include <linux/slab.h>
 #include <asm/unaligned.h>
@@ -497,6 +498,8 @@ static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
 		return;
 	}
 	/* Change bits are all write 1 to clear */
+	xhci_dbg(xhci, "clear port %s change, writing 0x%x\n",
+			port_change_bit, port_status | status);
 	writel(port_status | status, addr);
 	port_status = readl(addr);
 	xhci_dbg(xhci, "clear port %s change, actual port %d status  = 0x%x\n",

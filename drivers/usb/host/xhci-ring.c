@@ -64,6 +64,8 @@
  *   endpoint rings; it generates events on the event ring for these.
  */
 
+#define DEBUG
+
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include "xhci.h"
