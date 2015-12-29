@@ -35,6 +35,8 @@
 #include "clearstate_ci.h"
 #include "radeon_kfd.h"
 
+static void cik_print_gpu_status_regs(struct radeon_device *rdev);
+
 MODULE_FIRMWARE("radeon/BONAIRE_pfp.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_me.bin");
 MODULE_FIRMWARE("radeon/BONAIRE_ce.bin");
@@ -2195,6 +2197,7 @@ static const u32 godavari_golden_registers[] =
 static void cik_init_golden_registers(struct radeon_device *rdev)
 {
 	/* Some of the registers might be dependent on GRBM_GFX_INDEX */
+	cik_print_gpu_status_regs(rdev);
 	mutex_lock(&rdev->grbm_idx_mutex);
 	switch (rdev->family) {
 	case CHIP_BONAIRE:
@@ -2285,6 +2288,7 @@ static void cik_init_golden_registers(struct radeon_device *rdev)
 		break;
 	}
 	mutex_unlock(&rdev->grbm_idx_mutex);
+	cik_print_gpu_status_regs(rdev);
 }
 
 /**
@@ -2461,6 +2465,7 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
 
 	if (!rdev->mc_fw)
 		return -EINVAL;
+	cik_print_gpu_status_regs(rdev);
 
 	if (rdev->new_fw) {
 		const struct mc_firmware_header_v1_0 *hdr =
@@ -2552,6 +2557,7 @@ int ci_mc_load_microcode(struct radeon_device *rdev)
 			WREG32(MC_SHARED_BLACKOUT_CNTL, blackout);
 	}
 
+	cik_print_gpu_status_regs(rdev);
 	return 0;
 }
 
@@ -4486,6 +4492,8 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 	unsigned i;
 	int r;
 
+	printk("cik_ring_test...\n");
+	cik_print_gpu_status_regs(rdev);
 	r = radeon_scratch_get(rdev, &scratch);
 	if (r) {
 		DRM_ERROR("radeon: cp failed to get scratch reg (%d).\n", r);
@@ -4498,9 +4506,13 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		radeon_scratch_free(rdev, scratch);
 		return r;
 	}
+	printk("cik_ring_test: write\n");
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
+	printk("%08x\n", PACKET3(PACKET3_SET_UCONFIG_REG, 1));
 	radeon_ring_write(ring, ((scratch - PACKET3_SET_UCONFIG_REG_START) >> 2));
 	radeon_ring_write(ring, 0xDEADBEEF);
+
+	printk("cik_ring_test: commit\n");
 	radeon_ring_unlock_commit(rdev, ring, false);
 
 	for (i = 0; i < rdev->usec_timeout; i++) {
@@ -4509,6 +4521,8 @@ int cik_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
 			break;
 		DRM_UDELAY(1);
 	}
+	printk("cik_ring_test: after\n");
+	cik_print_gpu_status_regs(rdev);
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
 	} else {
@@ -5008,7 +5022,13 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 	WREG32(CP_ENDIAN_SWAP, 0);
 	WREG32(CP_DEVICE_ID, 1);
 
+	cik_print_gpu_status_regs(rdev);
+
+	printk("cip_cp_gfx_enable start\n");
 	cik_cp_gfx_enable(rdev, true);
+	printk("cip_cp_gfx_enable done\n");
+
+	cik_print_gpu_status_regs(rdev);
 
 	r = radeon_ring_lock(rdev, ring, cik_default_size + 17);
 	if (r) {
@@ -5016,6 +5036,7 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 		return r;
 	}
 
+	printk("write init CE partitions\n");
 	/* init the CE partitions.  CE only used for gfx on CIK */
 	radeon_ring_write(ring, PACKET3(PACKET3_SET_BASE, 2));
 	radeon_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
@@ -5029,6 +5050,8 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, PACKET3(PACKET3_CONTEXT_CONTROL, 1));
 	radeon_ring_write(ring, 0x80000000);
 	radeon_ring_write(ring, 0x80000000);
+
+	cik_print_gpu_status_regs(rdev);
 
 	for (i = 0; i < cik_default_size; i++)
 		radeon_ring_write(ring, cik_default_state[i]);
@@ -5045,7 +5068,10 @@ static int cik_cp_gfx_start(struct radeon_device *rdev)
 	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
 	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
 
+	printk("commit ring\n");
 	radeon_ring_unlock_commit(rdev, ring, false);
+
+	cik_print_gpu_status_regs(rdev);
 
 	return 0;
 }
@@ -5126,9 +5152,14 @@ static int cik_cp_gfx_resume(struct radeon_device *rdev)
 	WREG32(CP_RB0_BASE_HI, upper_32_bits(rb_addr));
 
 	/* start the ring */
+	printk("start the ring\n");
+	cik_print_gpu_status_regs(rdev);
 	cik_cp_gfx_start(rdev);
+	cik_print_gpu_status_regs(rdev);
 	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
+	printk("doing ring test now\n");
 	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	printk("ring test over\n");
 	if (r) {
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 		return r;
@@ -5818,6 +5849,14 @@ static int cik_cp_resume(struct radeon_device *rdev)
 	return 0;
 }
 
+#define CP_CNTX_STAT 0x86e0
+#define CP_GRBM_FREE_COUNT 0x868c
+#define CP_ME_HEADER_DUMP 0x8684
+#define CP_PFP_HEADER_DUMP 0x8688
+#define CP_CE_HEADER_DUMP 0x8690
+#define CP_INT_STAT_DEBUG 0x87dc
+#define CP_BUSY_STAT 0x867c
+
 static void cik_print_gpu_status_regs(struct radeon_device *rdev)
 {
 	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
@@ -5841,6 +5880,26 @@ static void cik_print_gpu_status_regs(struct radeon_device *rdev)
 	dev_info(rdev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
 		 RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
 	dev_info(rdev->dev, "  CP_STAT = 0x%08x\n", RREG32(CP_STAT));
+	dev_info(rdev->dev, "  CP_BUSY_STAT = 0x%08x\n", RREG32(CP_BUSY_STAT));
+	dev_info(rdev->dev, "  CP_ME_CNTL = 0x%08x\n", RREG32(CP_ME_CNTL));
+	dev_info(rdev->dev, "  CP_CNTX_STAT = 0x%08x\n", RREG32(CP_CNTX_STAT));
+	dev_info(rdev->dev, "  CP_GRBM_FREE_COUNT = 0x%08x\n", RREG32(CP_GRBM_FREE_COUNT));
+	dev_info(rdev->dev, "  CP_ME_HEADER_DUMP = 0x%08x\n", RREG32(CP_ME_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_ME_HEADER_DUMP = 0x%08x\n", RREG32(CP_ME_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_ME_HEADER_DUMP = 0x%08x\n", RREG32(CP_ME_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_ME_HEADER_DUMP = 0x%08x\n", RREG32(CP_ME_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_ME_HEADER_DUMP = 0x%08x\n", RREG32(CP_ME_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_PFP_HEADER_DUMP = 0x%08x\n", RREG32(CP_PFP_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_PFP_HEADER_DUMP = 0x%08x\n", RREG32(CP_PFP_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_PFP_HEADER_DUMP = 0x%08x\n", RREG32(CP_PFP_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_PFP_HEADER_DUMP = 0x%08x\n", RREG32(CP_PFP_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_PFP_HEADER_DUMP = 0x%08x\n", RREG32(CP_PFP_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_CE_HEADER_DUMP = 0x%08x\n", RREG32(CP_CE_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_CE_HEADER_DUMP = 0x%08x\n", RREG32(CP_CE_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_CE_HEADER_DUMP = 0x%08x\n", RREG32(CP_CE_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_CE_HEADER_DUMP = 0x%08x\n", RREG32(CP_CE_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_CE_HEADER_DUMP = 0x%08x\n", RREG32(CP_CE_HEADER_DUMP));
+	dev_info(rdev->dev, "  CP_INT_STAT_DEBUG = 0x%08x\n", RREG32(CP_INT_STAT_DEBUG));
 	dev_info(rdev->dev, "  CP_STALLED_STAT1 = 0x%08x\n",
 		 RREG32(CP_STALLED_STAT1));
 	dev_info(rdev->dev, "  CP_STALLED_STAT2 = 0x%08x\n",
@@ -5856,6 +5915,10 @@ static void cik_print_gpu_status_regs(struct radeon_device *rdev)
 	dev_info(rdev->dev, "  CP_CPC_STALLED_STAT1 = 0x%08x\n",
 		 RREG32(CP_CPC_STALLED_STAT1));
 	dev_info(rdev->dev, "  CP_CPC_STATUS = 0x%08x\n", RREG32(CP_CPC_STATUS));
+
+	dev_info(rdev->dev, "\n");
+
+	msleep(300);
 }
 
 /**
@@ -6236,6 +6299,7 @@ static void cik_gpu_pci_config_reset(struct radeon_device *rdev)
 int cik_asic_reset(struct radeon_device *rdev)
 {
 	u32 reset_mask;
+	printk("cik_asic_reset\n");
 
 	reset_mask = cik_gpu_check_soft_reset(rdev);
 
