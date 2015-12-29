@@ -820,6 +820,10 @@ static int radeon_vm_update_ptes(struct radeon_device *rdev,
 	unsigned count = 0;
 	uint64_t addr;
 
+	printk("radeon_vm_update_ptes 0x%lx:0x%lx -> 0x%lx (0x%x)\n",
+		start, end, dst, flags);
+
+	
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; ) {
 		uint64_t pt_idx = addr >> radeon_vm_block_size;
