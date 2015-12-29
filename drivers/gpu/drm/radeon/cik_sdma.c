@@ -52,6 +52,123 @@ u32 cik_gpu_check_soft_reset(struct radeon_device *rdev);
  * buffers.
  */
 
+#define SDMA0_CHICKEN_BITS 0xd014
+#define SDMA1_CHICKEN_BITS 0xd814
+
+#define SDMA0_RB_RPTR_FETCH 0xd028
+#define SDMA0_IB_OFFSET_FETCH 0xd02c
+#define SDMA0_PROGRAM 0xd030
+
+#define SDMA0_STATUS1_REG 0xd038
+
+//#define SDMA0_GFX_RB_CNTL 0xd200
+//#define SDMA0_GFX_RB_BASE 0xd204
+//#define SDMA0_GFX_RB_BASE_HI 0xd208
+//#define SDMA0_GFX_RB_RPTR 0xd20c
+//#define SDMA0_GFX_RB_WPTR 0xd210
+#define SDMA0_GFX_RB_WPTR_POLL_CNTL 0xd214
+#define SDMA0_GFX_RB_WPTR_POLL_ADDR_HI 0xd218
+#define SDMA0_GFX_RB_WPTR_POLL_ADDR_LO 0xd21c
+//#define SDMA0_GFX_RB_RPTR_ADDR_HI 0xd220
+//#define SDMA0_GFX_RB_RPTR_ADDR_LO 0xd224
+//#define SDMA0_GFX_IB_CNTL 0xd228
+#define SDMA0_GFX_IB_RPTR 0xd22c
+#define SDMA0_GFX_IB_OFFSET 0xd230
+#define SDMA0_GFX_IB_BASE_LO 0xd234
+#define SDMA0_GFX_IB_BASE_HI 0xd238
+#define SDMA0_GFX_IB_SIZE 0xd23c
+#define SDMA0_GFX_SKIP_CNTL 0xd240
+#define SDMA0_GFX_CONTEXT_STATUS 0xd244
+#define SDMA0_GFX_CONTEXT_CNTL 0xd24c
+
+
+static void cik_sdma_print_gpu_status_regs(struct radeon_device *rdev)
+{
+	int i;
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE2=0x%08X\n",
+		RREG32(GRBM_STATUS_SE2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE3=0x%08X\n",
+		RREG32(GRBM_STATUS_SE3));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	dev_info(rdev->dev, "  SRBM_STATUS2=0x%08X\n",
+		RREG32(SRBM_STATUS2));
+	dev_info(rdev->dev, "  SDMA0_STATUS_REG   = 0x%08X\n",
+		RREG32(SDMA0_STATUS_REG + SDMA0_REGISTER_OFFSET));
+	dev_info(rdev->dev, "  SDMA1_STATUS_REG   = 0x%08X\n",
+		RREG32(SDMA0_STATUS_REG + SDMA1_REGISTER_OFFSET));
+
+
+	dev_info(rdev->dev, "  SDMA0_CHICKEN_BITS=0x%08x\n",
+		RREG32(SDMA0_CHICKEN_BITS));
+	dev_info(rdev->dev, "  SDMA0_RB_RPTR_FETCH=0x%08x\n",
+		RREG32(SDMA0_RB_RPTR_FETCH));
+	dev_info(rdev->dev, "  SDMA0_IB_OFFSET_FETCH=0x%08x\n",
+		RREG32(SDMA0_IB_OFFSET_FETCH));
+	dev_info(rdev->dev, "  SDMA0_PROGRAM=0x%08x\n",
+		RREG32(SDMA0_PROGRAM));
+	dev_info(rdev->dev, "  SDMA0_STATUS_REG=0x%08x\n",
+		RREG32(SDMA0_STATUS_REG));
+	dev_info(rdev->dev, "  SDMA0_STATUS1_REG=0x%08X\n",
+		RREG32(SDMA0_STATUS1_REG + SDMA0_REGISTER_OFFSET));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_CNTL=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_CNTL));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_BASE=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_BASE));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_BASE_HI=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_BASE_HI));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_RPTR=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_RPTR));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_WPTR=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_WPTR));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_WPTR_POLL_CNTL=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_WPTR_POLL_CNTL));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_WPTR_POLL_ADDR_HI=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_WPTR_POLL_ADDR_HI));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_WPTR_POLL_ADDR_LO=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_WPTR_POLL_ADDR_LO));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_RPTR_ADDR_HI=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_RPTR_ADDR_HI));
+	dev_info(rdev->dev, "  SDMA0_GFX_RB_RPTR_ADDR_LO=0x%08x\n",
+		RREG32(SDMA0_GFX_RB_RPTR_ADDR_LO));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_CNTL=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_CNTL));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_RPTR=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_RPTR));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_OFFSET=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_OFFSET));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_BASE_LO=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_BASE_LO));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_BASE_HI=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_BASE_HI));
+	dev_info(rdev->dev, "  SDMA0_GFX_IB_SIZE=0x%08x\n",
+		RREG32(SDMA0_GFX_IB_SIZE));
+	dev_info(rdev->dev, "  SDMA0_GFX_SKIP_CNTL=0x%08x\n",
+		RREG32(SDMA0_GFX_SKIP_CNTL));
+	dev_info(rdev->dev, "  SDMA0_GFX_CONTEXT_STATUS=0x%08x\n",
+		RREG32(SDMA0_GFX_CONTEXT_STATUS));
+	dev_info(rdev->dev, "  SDMA0_GFX_CONTEXT_CNTL=0x%08x\n",
+		RREG32(SDMA0_GFX_CONTEXT_CNTL));
+
+	for (i=0xe00/4; i<(0xe20/4); i+=4) {
+		printk("%04x: %08x %08x %08x %08x\n", i*4,
+		       rdev->wb.wb[i], rdev->wb.wb[i+1],
+		       rdev->wb.wb[i+2], rdev->wb.wb[i+3]);
+	}
+
+	dev_info(rdev->dev, "\n");
+
+	msleep(500);
+}
+
 /**
  * cik_sdma_get_rptr - get the current read pointer
  *
@@ -118,6 +235,7 @@ void cik_sdma_set_wptr(struct radeon_device *rdev,
 	else
 		reg = SDMA0_GFX_RB_WPTR + SDMA1_REGISTER_OFFSET;
 
+	printk("SDMA wptr write: %08x %08x\n", reg, (ring->wptr << 2) & 0x3fffc);
 	WREG32(reg, (ring->wptr << 2) & 0x3fffc);
 	(void)RREG32(reg);
 }
@@ -392,6 +510,8 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 			reg_offset = SDMA1_REGISTER_OFFSET;
 			wb_offset = CAYMAN_WB_DMA1_RPTR_OFFSET;
 		}
+		
+		printk("SDMA %d\n", i);
 
 		WREG32(SDMA0_SEM_INCOMPLETE_TIMER_CNTL + reg_offset, 0);
 		WREG32(SDMA0_SEM_WAIT_FAIL_TIMER_CNTL + reg_offset, 0);
@@ -435,11 +555,13 @@ static int cik_sdma_gfx_resume(struct radeon_device *rdev)
 
 		ring->ready = true;
 
+		printk("radeon_ring_test...\n");
 		r = radeon_ring_test(rdev, ring->idx, ring);
 		if (r) {
 			ring->ready = false;
 			return r;
 		}
+		printk("radeon_ring_test done...\n");
 	}
 
 	if ((rdev->asic->copy.copy_ring_index == R600_RING_TYPE_DMA_INDEX) ||
@@ -663,6 +785,8 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 	u32 tmp;
 	u64 gpu_addr;
 
+	cik_sdma_print_gpu_status_regs(rdev);
+
 	if (ring->idx == R600_RING_TYPE_DMA_INDEX)
 		index = R600_WB_DMA_RING_TEST_OFFSET;
 	else
@@ -705,6 +829,12 @@ int cik_sdma_ring_test(struct radeon_device *rdev,
 			break;
 		DRM_UDELAY(1);
 	}
+	printk("wb: %08x\n", rdev->wb.wb[index/4]);
+	cik_sdma_print_gpu_status_regs(rdev);
+
+	printk("pointers: r %08x w %08x\n",
+	       cik_sdma_get_rptr(rdev, ring),
+	       cik_sdma_get_wptr(rdev, ring));
 
 	if (i < rdev->usec_timeout) {
 		DRM_INFO("ring test on %d succeeded in %d usecs\n", ring->idx, i);
@@ -775,12 +905,13 @@ int cik_sdma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
+		DRM_INFO("sdma ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
 	} else {
 		DRM_ERROR("radeon: ib test failed (0x%08X)\n", tmp);
 		r = -EINVAL;
 	}
 	radeon_ib_free(rdev, &ib);
+	cik_sdma_print_gpu_status_regs(rdev);
 	return r;
 }
 
@@ -970,6 +1101,8 @@ void cik_dma_vm_flush(struct radeon_device *rdev, struct radeon_ring *ring,
 {
 	u32 extra_bits = (SDMA_POLL_REG_MEM_EXTRA_OP(0) |
 			  SDMA_POLL_REG_MEM_EXTRA_FUNC(0)); /* always */
+	
+	printk("cik_dma_vm_flush\n");
 
 	radeon_ring_write(ring, SDMA_PACKET(SDMA_OPCODE_SRBM_WRITE, 0, 0xf000));
 	if (vm_id < 8) {
